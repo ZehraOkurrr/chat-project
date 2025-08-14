@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Ana chat uygulaması
+  chat-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat-app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=true
+    volumes:
+      - ./app:/app/app
+      - ./domain:/app/domain
+      - ./adapters:/app/adapters
+      - ./infrastructure:/app/infrastructure
+      - ./static:/app/static
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    driver: bridge

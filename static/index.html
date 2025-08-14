@@ -6,35 +6,73 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Chat Room</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 800px;}
-    #log { border: 2px solid #db59ec; height: 400px; width: 100%; overflow-y: auto; padding: 8px; margin: 8px 0; }
-    #log .me { font-weight: 600; color: #db59ec; }
-    #log .error { color: red; font-weight: bold; }
+    body { 
+      font-family: system-ui, sans-serif; 
+      margin: 20px; 
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    #log { 
+      border: 1px solid #ddd; 
+      height: 300px; 
+      width: 100%; 
+      overflow-y: auto; 
+      padding: 10px; 
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    #log .me { font-weight: 600; color: #007bff; }
+    #log .error { color: red; }
     #log .system { color: #666; font-style: italic; }
-    .row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
-    input, button { padding: 8px 10px; font-size: 14px; border-radius: 4px; border: 2px solid #db59ec; }
-    input:focus, button:focus { outline: none; border-color: #a020f0; }
-    button { background: #db59ec; color: white; cursor: pointer; }
-    button:hover { background: #a020f0; }
+    .row { 
+      display: flex; 
+      gap: 10px; 
+      margin: 10px 0; 
+      flex-wrap: wrap; 
+    }
+    input, button { 
+      padding: 8px 12px; 
+      font-size: 14px; 
+      border-radius: 4px; 
+      border: 1px solid #ddd; 
+    }
+    input:focus, button:focus { 
+      outline: none; 
+      border-color: #007bff; 
+    }
+    button { 
+      background: #007bff; 
+      color: white; 
+      cursor: pointer; 
+      border: none;
+    }
+    button:hover { background: #0056b3; }
     button:disabled { background: #ccc; cursor: not-allowed; }
-    .h1 { color: #db59ec; text-align: center; }
-    .room-info { background: #f0f0f0; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    h1 { color: #007bff; text-align: center; }
+    .room-info { 
+      background: #f8f9fa; 
+      padding: 10px; 
+      border-radius: 4px; 
+      margin: 10px 0;
+      border: 1px solid #e9ecef;
+    }
   </style>
 </head>
 <body>
 
-  <h1 class="h1">Chat Room</h1>
+  <h1>Chat Room</h1>
   
   <div class="row">
-    <input id="room" placeholder="Oda adı (örn: abc)" />
-    <input id="username" placeholder="Kullanıcı adı (örn: zehra)" />
-    <input id="password" type="password" placeholder="Şifre (opsiyonel)" />
+    <input id="room" placeholder="Oda adı" />
+    <input id="username" placeholder="Kullanıcı adı" />
+    <input id="password" type="password" placeholder="Şifre" />
     <button id="connect">Bağlan</button>
     <button id="disconnect" disabled>Çık</button>
   </div>
 
   <div class="room-info" id="roomInfo" style="display: none;">
-    <strong>Oda Bilgisi:</strong> <span id="userCount">0</span> kişi online
+    <strong>Oda:</strong> <span id="roomName"></span> | <span id="userCount">0</span> kişi online
   </div>
 
   <div id="log"></div>
@@ -54,6 +92,7 @@
     const btnDisconnect = document.getElementById('disconnect');
     const btnSend = document.getElementById('send');
     const roomInfoEl = document.getElementById('roomInfo');
+    const roomNameEl = document.getElementById('roomName');
     const userCountEl = document.getElementById('userCount');
 
     let ws = null;
@@ -68,19 +107,15 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
 
-    function updateUserCount(count) {
-      userCountEl.textContent = count;
-    }
-
     btnConnect.onclick = () => {
-      const room = roomEl.value.trim() || "general";
+      const room = roomEl.value.trim() || "genel";
       const username = userEl.value.trim() || "anon";
       const password = passwordEl.value.trim() || null;
       
       currentRoom = room;
       currentUsername = username;
 
-      ws = new WebSocket(`ws://localhost:8000/ws/${encodeURIComponent(room)}/${encodeURIComponent(username)}`);
+      ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(username)}`);
 
       ws.onopen = () => {
         log(`Bağlantı kuruluyor...`, "system");
@@ -96,12 +131,13 @@
           
           switch(data.type) {
             case 'connected':
-              log(data.message, "system");
+              log(data.content, "system");
               btnConnect.disabled = true;
               btnDisconnect.disabled = false;
               msgEl.disabled = false;
               btnSend.disabled = false;
               roomInfoEl.style.display = 'block';
+              roomNameEl.textContent = room;
               msgEl.focus();
               break;
               
@@ -110,12 +146,12 @@
               break;
               
             case 'error':
-              log(data.message, "error");
+              log(data.content, "error");
               ws.close();
               break;
               
             case 'room_closed':
-              log(data.message, "error");
+              log(data.content, "error");
               btnConnect.disabled = false;
               btnDisconnect.disabled = true;
               msgEl.disabled = true;
