@@ -2,8 +2,8 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
-from domain.models import User, Room, Message, RoomMembership, MessageType
-from domain.entities import User as UserEntity, Room as RoomEntity, Message as MessageEntity
+from domain.models import User, Room, Message, RoomMembership, Session, MessageType
+from domain.entities import User as UserEntity, Room as RoomEntity, Message as MessageEntity, Session as SessionEntity
 from datetime import datetime
 
 class PostgresUserRepository:
@@ -221,3 +221,57 @@ class PostgresMessageRepository:
             message_entities.append(message_entity)
         
         return message_entities[::-1]  # Eski mesajlar önce
+
+class PostgresSessionRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    
+    async def save_session(self, session_entity: SessionEntity) -> None:
+        db_session = Session(
+            session_id=session_entity.session_id,
+            user_id=int(session_entity.user_id),
+            room_id=session_entity.room_id,
+            created_at=session_entity.created_at,
+            expires_at=session_entity.expires_at,
+            is_active=session_entity.is_active
+        )
+        self.session.add(db_session)
+        await self.session.commit()
+    
+    async def get_session(self, session_id: str) -> Optional[SessionEntity]:
+        result = await self.session.execute(
+            select(Session).where(Session.session_id == session_id)
+        )
+        db_session = result.scalar_one_or_none()
+        
+        if db_session:
+            return SessionEntity(
+                session_id=db_session.session_id,
+                user_id=str(db_session.user_id),
+                username="",  # User bilgisi ayrıca alınmalı
+                room_id=db_session.room_id,
+                created_at=db_session.created_at,
+                expires_at=db_session.expires_at,
+                is_active=db_session.is_active
+            )
+        return None
+    
+    async def invalidate_session(self, session_id: str) -> None:
+        result = await self.session.execute(
+            select(Session).where(Session.session_id == session_id)
+        )
+        db_session = result.scalar_one_or_none()
+        
+        if db_session:
+            db_session.is_active = False
+            await self.session.commit()
+    
+    async def cleanup_expired_sessions(self) -> None:
+        expired_sessions = await self.session.execute(
+            select(Session).where(Session.expires_at < datetime.now())
+        )
+        
+        for session in expired_sessions.scalars().all():
+            await self.session.delete(session)
+        
+        await self.session.commit()

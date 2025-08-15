@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Enum as SQLEnum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 Base = declarative_base()
@@ -21,6 +21,7 @@ class User(Base):
     # İlişkiler
     messages = relationship("Message", back_populates="sender")
     room_memberships = relationship("RoomMembership", back_populates="user")
+    sessions = relationship("Session", back_populates="user")
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -64,3 +65,19 @@ class RoomMembership(Base):
     # İlişkiler
     user = relationship("User", back_populates="room_memberships")
     room = relationship("Room", back_populates="memberships")
+
+class Session(Base):
+    __tablename__ = "sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    expires_at = Column(DateTime, default=lambda: datetime.now() + timedelta(hours=24))
+    is_active = Column(Boolean, default=True)
+    
+    # Foreign Keys
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    room_id = Column(String(50), nullable=False)
+    
+    # İlişkiler
+    user = relationship("User", back_populates="sessions")
